@@ -9,47 +9,28 @@ jobs:
   performance-test:
     runs-on: ubuntu-latest
 
+    # Run all steps inside a pre-built JMeter container
+    container:
+      image: justb4/jmeter:5.6.3
+
     steps:
-      # 1. Checkout repository code (v5 clears Node warning)
+      # 1. Checkout repository code
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      # 2. Setup Java environment (v5 clears Node warning)
-      - name: Setup Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: "temurin"
-          java-version: "17" # Upgraded to 17 for better plugin compatibility
-
-      # 3. Download JMeter + Plugins Manager
-      - name: Download JMeter and Plugins Manager
-        run: |
-          # Download and unpack JMeter 5.6.3
-          wget https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.6.3.tgz
-          tar -xvzf apache-jmeter-5.6.3.tgz
-
-          # Download JMeter Plugins Manager JAR
-          wget -O apache-jmeter-5.6.3/lib/ext/jmeter-plugins-manager-1.10.jar https://repo1.maven.org/maven2/kg/apc/jmeter-plugins-manager/1.10/jmeter-plugins-manager-1.10.jar
-
-          # Download Command Line Tool wrapper for automated installations
-          wget -O apache-jmeter-5.6.3/lib/cmdrunner-2.3.jar https://repo1.maven.org/maven2/kg/apc/cmdrunner/2.3/cmdrunner-2.3.jar
-          java -cp apache-jmeter-5.6.3/lib/ext/jmeter-plugins-manager-1.10.jar org.jmeterplugins.repository.PluginManagerCMDInstaller
-
-      # 4. Run JMeter test (NON-GUI mode)
+      # 2. Run JMeter test inside the container environment
       - name: Run Load Test
         run: |
+          # Create fresh directories
           mkdir -p results reports/html-report
 
-          # Automatically detect and install any missing plugins found inside your JMX file
-          ./apache-jmeter-5.6.3/bin/PluginsManagerCMD.sh install-for-jmx test-plans/booking-test.jmx
-
-          echo "=== Starting JMeter Test ==="
-          ./apache-jmeter-5.6.3/bin/jmeter -n \
+          # Execute using the container's built-in global 'jmeter' command
+          jmeter -n \
             -t test-plans/booking-test.jmx \
             -l results/result.jtl \
             -e -o reports/html-report
 
-      # 5. Archive and upload the generated dashboard
+      # 3. Upload the generated report
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
