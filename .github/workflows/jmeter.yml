@@ -5,49 +5,48 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Fixes the Node runtime tracking warning shown in your previous runs
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JUST_SCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   performance-test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
+      # 1. Checkout repository code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Install Java (required for JMeter)
+      # 2. Setup Java environment
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "11"
 
-      # 3. Install JMeter
+      # 3. Download and unpack JMeter binary
       - name: Download JMeter
         run: |
           wget https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.6.3.tgz
           tar -xvzf apache-jmeter-5.6.3.tgz
 
-      # 4. Run JMeter test (NON-GUI mode)
+      # 4. Execute the load test
       - name: Run Load Test
         run: |
-          # Ensure execution happens from the repository root workspace
-          cd $GITHUB_WORKSPACE
-
-          # Clean and recreate target directories matching image_0bb069.png structure
-          rm -rf results reports/html-report
+          # Create clean directories in the root workspace
           mkdir -p results reports/html-report
 
-          # Execute using explicit root-relative path targets
-          $GITHUB_WORKSPACE/apache-jmeter-5.6.3/bin/jmeter -n \
+          # CRITICAL FIX: Copy your test-data directory into the JMeter bin folder
+          # This ensures JMeter finds 'test-data/booking-data.csv' regardless of its relative pathing configuration
+          cp -r test-data apache-jmeter-5.6.3/bin/
+
+          echo "=== Executing JMeter Test Plan ==="
+          apache-jmeter-5.6.3/bin/jmeter -n \
             -t test-plans/booking-test.jmx \
             -l results/result.jtl \
             -e -o reports/html-report
 
-      # 5. Upload HTML report
+      # 5. Archive and upload the generated dashboard
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
