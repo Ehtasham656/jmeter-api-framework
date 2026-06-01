@@ -5,7 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Force all steps to run using Node 24 runtime to silence deprecation warnings
+# Fixes the Node runtime tracking warning shown in your previous runs
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -34,20 +34,23 @@ jobs:
       # 4. Run JMeter test (NON-GUI mode)
       - name: Run Load Test
         run: |
-          # Create clean paths absolute to the working directory
-          mkdir -p ${{ github.workspace }}/results
-          mkdir -p ${{ github.workspace }}/reports/html-report
+          # Ensure execution happens from the repository root workspace
+          cd $GITHUB_WORKSPACE
 
-          # Execute test plan
-          apache-jmeter-5.6.3/bin/jmeter -n \
+          # Clean and recreate target directories matching image_0bb069.png structure
+          rm -rf results reports/html-report
+          mkdir -p results reports/html-report
+
+          # Execute using explicit root-relative path targets
+          $GITHUB_WORKSPACE/apache-jmeter-5.6.3/bin/jmeter -n \
             -t test-plans/booking-test.jmx \
-            -l ${{ github.workspace }}/results/result.jtl \
-            -e -o ${{ github.workspace }}/reports/html-report
+            -l results/result.jtl \
+            -e -o reports/html-report
 
       # 5. Upload HTML report
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
           name: jmeter-html-report
-          path: ${{ github.workspace }}/reports/html-report
+          path: reports/html-report
           if-no-files-found: error
