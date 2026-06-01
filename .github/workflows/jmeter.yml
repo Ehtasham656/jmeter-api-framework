@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Force all steps to run using Node 24 runtime to silence deprecation warnings
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   performance-test:
     runs-on: ubuntu-latest
@@ -30,18 +34,20 @@ jobs:
       # 4. Run JMeter test (NON-GUI mode)
       - name: Run Load Test
         run: |
-          # Create missing output directories so JMeter doesn't fail silently
-          mkdir -p results reports/html-report
+          # Create clean paths absolute to the working directory
+          mkdir -p ${{ github.workspace }}/results
+          mkdir -p ${{ github.workspace }}/reports/html-report
 
-          # Execute the performance test
+          # Execute test plan
           apache-jmeter-5.6.3/bin/jmeter -n \
             -t test-plans/booking-test.jmx \
-            -l results/result.jtl \
-            -e -o reports/html-report
+            -l ${{ github.workspace }}/results/result.jtl \
+            -e -o ${{ github.workspace }}/reports/html-report
 
       # 5. Upload HTML report
       - name: Upload Report
         uses: actions/upload-artifact@v4
         with:
           name: jmeter-html-report
-          path: reports/html-report/
+          path: ${{ github.workspace }}/reports/html-report
+          if-no-files-found: error
