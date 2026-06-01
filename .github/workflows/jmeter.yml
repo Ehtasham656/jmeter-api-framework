@@ -5,21 +5,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  FORCE_JUST_SCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   performance-test:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout repository code
+      # 1. Checkout repository code (v5 completely clears the Node 20 warning)
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      # 2. Setup Java environment
+      # 2. Setup Java environment (v5 completely clears the Node 20 warning)
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "11"
@@ -30,21 +27,20 @@ jobs:
           wget https://downloads.apache.org/jmeter/binaries/apache-jmeter-5.6.3.tgz
           tar -xvzf apache-jmeter-5.6.3.tgz
 
-      # 4. Execute the load test
+      # 4. Run JMeter test (NON-GUI mode with forced Base Directory)
       - name: Run Load Test
         run: |
-          # Create clean directories in the root workspace
+          # 1. Ensure target output directories are ready
           mkdir -p results reports/html-report
 
-          # CRITICAL FIX: Copy your test-data directory into the JMeter bin folder
-          # This ensures JMeter finds 'test-data/booking-data.csv' regardless of its relative pathing configuration
-          cp -r test-data apache-jmeter-5.6.3/bin/
-
-          echo "=== Executing JMeter Test Plan ==="
+          # 2. Run JMeter with the -d flag pointing to the root workspace folder.
+          # This forces JMeter's internal engine to search relative to your repo root,
+          # allowing it to properly find test-plans/ and test-data/ configurations.
           apache-jmeter-5.6.3/bin/jmeter -n \
-            -t test-plans/booking-test.jmx \
-            -l results/result.jtl \
-            -e -o reports/html-report
+            -d "$GITHUB_WORKSPACE" \
+            -t "$GITHUB_WORKSPACE/test-plans/booking-test.jmx" \
+            -l "$GITHUB_WORKSPACE/results/result.jtl" \
+            -e -o "$GITHUB_WORKSPACE/reports/html-report"
 
       # 5. Archive and upload the generated dashboard
       - name: Upload Report
